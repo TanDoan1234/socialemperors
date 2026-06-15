@@ -12,3 +12,4 @@ Include/
 Lib/
 Scripts/
 pyvenv.cfg
+.python-version

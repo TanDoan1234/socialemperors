@@ -33,73 +33,79 @@ __saves = {}  # ALL saved villages
     "USERID_2": {...}
 }'''
 
-__initial_village = json.load(open(os.path.join(VILLAGES_DIR, "initial.json")))
+__initial_village = None
 
 # Load saved villages
+
+from database import db_load_player, db_save_player, db_load_all_saves, db_load_neighbor, db_load_all_neighbors, get_db_connection
 
 def load_saved_villages():
     global __villages
     global __saves
+    global __initial_village
     # Empty in memory
     __villages = {}
     __saves = {}
-    # Saves dir check
-    if not os.path.exists(SAVES_DIR):
-        try:
-            print(f"Creating '{SAVES_DIR}' folder...")
-            os.mkdir(SAVES_DIR)
-        except:
-            print(f"Could not create '{SAVES_DIR}' folder.")
-            exit(1)
-    if not os.path.isdir(SAVES_DIR):
-        print(f"'{SAVES_DIR}' is not a folder... Move the file somewhere else.")
-        exit(1)
-    # Static neighbors in /villages
-    for file in os.listdir(VILLAGES_DIR):
-        if file == "initial.json" or not file.endswith(".json"):
-            continue
-        print(f" * Loading static neighbour {file}... ", end='')
-        village = json.load(open(os.path.join(VILLAGES_DIR, file)))
-        if not is_valid_village(village):
-            print("Invalid neighbour")
-            continue
-        USERID = village["playerInfo"]["pid"]
-        if str(USERID) in __villages:
-            print(f"Ignored: duplicated PID '{USERID}'.")
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Load static neighbors from SQLite
+        cursor.execute("SELECT nid, map_data FROM neighbor_villages")
+        for row in cursor.fetchall():
+            nid = row["nid"]
+            # Exclude initial template from active neighbors
+            if nid == "initial":
+                continue
+            village = json.loads(row["map_data"])
+            __villages[str(nid)] = village
+            
+        # Load saves from SQLite
+        cursor.execute("SELECT pid, save_data FROM players")
+        for row in cursor.fetchall():
+            pid = row["pid"]
+            save = json.loads(row["save_data"])
+            __saves[str(pid)] = save
+            
+        # Load initial template from SQLite
+        cursor.execute("SELECT map_data FROM neighbor_villages WHERE nid = 'initial'")
+        row = cursor.fetchone()
+        if row:
+            __initial_village = json.loads(row["map_data"])
         else:
-            __villages[str(USERID)] = village
-            print("Ok.")
-    # Saves in /saves
-    for file in os.listdir(SAVES_DIR):
-        if not file.endswith(".save.json"):
-            continue
-        print(f" * Loading save at {file}... ", end='')
-        try:
-            save = json.load(open(os.path.join(SAVES_DIR, file)))
-        except json.decoder.JSONDecodeError as e:
-            print("Corrupted JSON.")
-            continue
-        if not is_valid_village(save):
-            print("Invalid Save.")
-            continue
-        USERID = save["playerInfo"]["pid"]
-        try:
-            map_name = save["playerInfo"]["map_names"][ save["playerInfo"]["default_map"] ]
-        except:
-            map_name = '?'
-        print(f"({map_name}) Ok.")
-        __saves[str(USERID)] = save
-        modified = migrate_loaded_save(save) # check save version for migration
-        if modified:
-            save_session(USERID)
+            initial_path = os.path.join(VILLAGES_DIR, "initial.json")
+            if os.path.exists(initial_path):
+                with open(initial_path, 'r') as f:
+                    __initial_village = json.load(f)
+                    
+        conn.close()
+        print(" * Loaded saves and neighbors from SQLite database.")
+    except Exception as e:
+        print(f" * Error loading saves from SQLite: {e}")
     
 
 # New village
 
 def new_village() -> str:
+    global __initial_village
     # Generate USERID
     USERID: str = str(uuid.uuid4())
     assert USERID not in all_userid()
+    
+    # Load initial template dynamically if not loaded
+    if __initial_village is None:
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT map_data FROM neighbor_villages WHERE nid = 'initial'")
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                __initial_village = json.loads(row["map_data"])
+        except Exception as e:
+            print(f" * Error loading initial village template from SQLite: {e}")
+            
     # Copy init
     village = copy.deepcopy(__initial_village)
     # Custom values
@@ -109,7 +115,7 @@ def new_village() -> str:
     village["privateState"]["dartsRandomSeed"] = abs(int((2**16 - 1) * random.random()))
     # Memory saves
     __saves[USERID] = village
-    # Generate save file
+    # Generate save file in SQLite
     save_session(USERID)
     print("Done.")
     return USERID
@@ -239,10 +245,15 @@ def backup_session(USERID: str):
     return
 
 def save_session(USERID: str):
-    # TODO 
-    file = f"{USERID}.save.json"
-    print(f" * Saving village at {file}... ", end='')
     village = session(USERID)
-    with open(os.path.join(SAVES_DIR, file), 'w') as f:
-        json.dump(village, f, indent=4)
-    print("Done.")
+    if not village:
+        return
+    pid = village["playerInfo"]["pid"]
+    name = village["playerInfo"]["name"]
+    default_map = village["playerInfo"]["default_map"]
+    level = village["maps"][default_map]["level"]
+    xp = village["maps"][default_map]["xp"]
+    last_logged_in = village["playerInfo"]["last_logged_in"]
+    
+    db_save_player(pid, name, level, xp, last_logged_in, village)
+    print(f" * Saved village '{name}' (Level {level}) to SQLite database.")

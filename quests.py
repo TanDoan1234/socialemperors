@@ -1,11 +1,14 @@
 import json
-import os
 
-from bundle import QUESTS_DIR
+from database import db_load_quest
 
 def get_quest_map(questid):
-    file = os.path.join(QUESTS_DIR, str(questid) + ".json")
-    if not os.path.exists(file):
-        return("", 404)
-    d = json.load(open(file, 'r'))
-    return(d, 200)
+    try:
+        qid = int(questid)
+        d = db_load_quest(qid)
+        if not d:
+            return("", 404)
+        return(d, 200)
+    except Exception as e:
+        print(f" * Error loading quest {questid} from SQLite: {e}")
+        return("", 500)

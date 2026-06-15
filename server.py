@@ -2,6 +2,8 @@ print (" [+] Loading basics...")
 import os
 import json
 import urllib
+import urllib.request
+import urllib.error
 if os.name == 'nt':
     os.system("color")
     os.system("title Social Empires Server")
@@ -13,6 +15,9 @@ print (" [+] Loading game config...")
 from get_game_config import get_game_config, patch_game_config
 
 print (" [+] Loading players...")
+from database import migrate_json_to_sqlite
+migrate_json_to_sqlite()
+
 from get_player_info import get_player_info, get_neighbor_info
 from sessions import load_saved_villages, all_saves_userid, all_saves_info, save_info, new_village, fb_friends_str
 load_saved_villages()
