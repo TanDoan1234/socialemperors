@@ -271,19 +271,29 @@ def do_command(USERID, cmd, args):
         collected_at_timestamp = timestamp_now()
         level = 0
         items += [[item_id, x, y, orientation, collected_at_timestamp, level]]#maybe make function for adding items
-        save["privateState"]["gifts"][item_id] -= 1
-        if save["privateState"]["gifts"][item_id] == 0: #removes excess zeros at end if necessary
-            while(save["privateState"]["gifts"][-1] == 0):
-                save["privateState"]["gifts"].pop()  
+        # Safely pad gifts list if index is out of bounds
+        gifts = save["privateState"]["gifts"]
+        if len(gifts) <= item_id:
+            gifts.extend([0] * (item_id - len(gifts) + 1))
+            
+        gifts[item_id] = max(0, gifts[item_id] - 1)
+        if gifts[item_id] == 0: #removes excess zeros at end if necessary
+            while len(gifts) > 0 and gifts[-1] == 0:
+                gifts.pop()  
 
     elif cmd == Constant.CMD_SELL_GIFT:
         item_id = args[0]
         town_id = args[1]
         print("Gift", str(get_name_from_item_id(item_id)), "sold on town:",town_id)
+        
+        # Safely pad gifts list if index is out of bounds
         gifts = save["privateState"]["gifts"]
-        gifts[item_id] -= 1
+        if len(gifts) <= item_id:
+            gifts.extend([0] * (item_id - len(gifts) + 1))
+            
+        gifts[item_id] = max(0, gifts[item_id] - 1)
         if gifts[item_id] == 0: #removes excess zeros at end if necessary
-            while(len(gifts) != 0 and gifts[-1] == 0):
+            while len(gifts) > 0 and gifts[-1] == 0:
                 gifts.pop()
         price_multiplier = -0.05
         if get_attribute_from_item_id(item_id, "cost_type") != "c":

@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Emperors - GM Control Panel</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --medieval-dark: #1e1208;
+            --medieval-wood: #3e2510;
+            --medieval-wood-light: #5a391a;
+            --medieval-gold: #ffd700;
+            --medieval-gold-dark: #b8860b;
+            --medieval-stone: #2c2e35;
+            --medieval-border: #8b6508;
+            --text-gold: #ffe680;
+            --text-light: #f7ebdb;
+            --text-muted: #c9b195;
+            
+            --gold: #ffcc00;
+            --cash: #00e676;
+            --wood: #a1887f;
+            --stone: #90a4ae;
+            --food: #ff8a80;
+            --primary: #ffd700;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            background-color: var(--medieval-dark);
+            color: var(--text-light);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Layout */
+        .sidebar {
+            width: 330px;
+            background: #2a1a0c url('/assets/images_new/generic_bg.png') repeat;
+            border-right: 4px solid var(--medieval-border);
+            box-shadow: inset -5px 0 15px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            z-index: 2;
+        }
+
+        .main-content {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: url('/assets/images_new/CESPED.jpg') repeat;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .main-content::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.45);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Sidebar Header */
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 3px solid var(--medieval-border);
+            background: rgba(30, 18, 8, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+
+        .sidebar-header img {
+            height: 40px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        .sidebar-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--medieval-gold);
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        /* Player List & Search */
+        .player-search {
+            padding: 16px;
+            background: rgba(20, 12, 5, 0.8);
+            border-bottom: 2px solid var(--medieval-border);
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-wrapper i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .search-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid var(--medieval-border);
+            border-radius: 6px;
+            padding: 10px 12px 10px 36px;
+            color: #fff;
+            outline: none;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--medieval-gold);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+        }
+
+        .player-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(0,0,0,0.25);
+        }
+
+        .player-card {
+            background: rgba(45, 30, 20, 0.85);
+            border: 2px solid var(--medieval-wood-light);
+            border-radius: 8px;
+            padding: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+
+        .player-card:hover {
+            background: rgba(70, 45, 25, 0.95);
+            border-color: var(--medieval-border);
+            transform: scale(1.02);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+
+        .player-card.active {
+            background: rgba(90, 57, 26, 0.95);
+            border-color: var(--medieval-gold);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.4), inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .player-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .player-name {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--text-gold);
+            text-shadow: 1px 1px 0px #000;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player-level {
+            font-size: 0.75rem;
+            background: #1e3c72;
+            border: 1px solid #2a5298;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .player-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .player-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+            text-shadow: 1px 1px 0px #000;
+        }
+
+        .player-meta .coins-meta i { color: var(--medieval-gold); }
+        .player-meta .cash-meta img {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Main Header */
+        .main-header {
+            padding: 20px 24px;
+            border-bottom: 4px solid var(--medieval-border);
+            background: rgba(45, 30, 20, 0.95);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .selected-player-title h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--medieval-gold);
+            text-shadow: 2px 2px 0px #000;
+        }
+
+        .selected-player-title p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border: 2px solid transparent;
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: #b8860b;
+            border-color: #ffd700;
+            color: #000;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #2e8b57;
+            border-color: #3cb371;
+            color: #fff;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #3cb371;
+            box-shadow: 0 0 15px rgba(60, 179, 113, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #8b0000;
+            border-color: #ff3333;
+            color: #fff;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #ff3333;
+            box-shadow: 0 0 15px rgba(255, 51, 51, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: rgba(30, 20, 10, 0.8);
+            border-color: var(--medieval-border);
+            color: var(--medieval-gold);
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: #4a2f13;
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none !important;
+        }
+
+        /* Tabs Container */
+        .dashboard-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            z-index: 1;
+        }
+
+        .tabs-header {
+            display: flex;
+            gap: 12px;
+            border-bottom: 3px solid var(--medieval-border);
+            padding-bottom: 12px;
+        }
+
+        .tab-btn {
+            background: #3e2510;
+            border: 2px solid var(--medieval-border);
+            color: var(--text-muted);
+            font-weight: 800;
+            font-size: 0.95rem;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: #fff;
+            background: var(--medieval-wood-light);
+        }
+
+        .tab-btn.active {
+            color: #000;
+            background: var(--medieval-gold);
+            border-color: #ffd700;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Grid Cards - Stone/Wooden styled Popup Panel */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            gap: 20px;
+        }
+
+        .resource-card {
+            background: rgba(45, 30, 20, 0.95);
+            border: 3px solid var(--medieval-border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        .resource-card::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; width: 14px; height: 14px;
+            border-top: 4px solid var(--medieval-gold);
+            border-left: 4px solid var(--medieval-gold);
+            pointer-events: none;
+        }
+
+        .resource-card::after {
+            content: '';
+            position: absolute;
+            bottom: -2px; right: -2px; width: 14px; height: 14px;
+            border-bottom: 4px solid var(--medieval-gold);
+            border-right: 4px solid var(--medieval-gold);
+            pointer-events: none;
+        }
+
+        .resource-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .resource-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--text-gold);
+            text-shadow: 1px 1px 0px #000;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .resource-title img {
+            width: 24px;
+            height: 24px;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+        }
+
+        .resource-title span.emoji-icon {
+            font-size: 1.3rem;
+        }
+
+        .resource-value-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--medieval-border);
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #fff;
+            text-align: center;
+            outline: none;
+            font-family: monospace;
+        }
+
+        .resource-value-input:focus {
+            border-color: var(--medieval-gold);
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .quick-btn {
+            background: var(--medieval-wood);
+            border: 2px solid var(--medieval-wood-light);
+            color: var(--text-light);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+            transition: all 0.15s;
+        }
+
+        .quick-btn:hover {
+            background: var(--medieval-wood-light);
+            border-color: var(--medieval-border);
+            color: #fff;
+        }
+
+        /* Item Injection Styles */
+        .injector-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+            height: 550px;
+        }
+
+        .item-list-container {
+            background: rgba(45, 30, 20, 0.95);
+            border: 3px solid var(--medieval-border);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.6);
+            position: relative;
+        }
+
+        .item-list-container::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; width: 14px; height: 14px;
+            border-top: 4px solid var(--medieval-gold);
+            border-left: 4px solid var(--medieval-gold);
+            pointer-events: none;
+        }
+
+        .item-search {
+            padding: 12px;
+            background: rgba(20, 12, 5, 0.5);
+            border-bottom: 2px solid var(--medieval-border);
+        }
+
+        .item-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .item-option-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(30, 20, 10, 0.6);
+            border: 2px solid var(--medieval-wood-light);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .item-option-card:hover {
+            background: rgba(70, 45, 25, 0.85);
+            border-color: var(--medieval-border);
+        }
+
+        .item-option-card.selected {
+            background: rgba(90, 57, 26, 0.9);
+            border-color: var(--medieval-gold);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .item-thumb-wrapper {
+            width: 46px;
+            height: 46px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--medieval-border);
+        }
+
+        .item-thumb-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .item-id-tag {
+            font-size: 0.75rem;
+            color: var(--text-gold);
+            font-family: monospace;
+            margin-top: 2px;
+        }
+
+        .injection-config {
+            background: rgba(45, 30, 20, 0.95);
+            border: 3px solid var(--medieval-border);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.6);
+            position: relative;
+        }
+
+        .injection-config::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; width: 14px; height: 14px;
+            border-top: 4px solid var(--medieval-gold);
+            border-left: 4px solid var(--medieval-gold);
+            pointer-events: none;
+        }
+
+        .injection-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--medieval-border);
+        }
+
+        .injection-header img {
+            width: 64px;
+            height: 64px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid var(--medieval-border);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .form-group-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-gold);
+        }
+
+        .form-input {
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--medieval-border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            outline: none;
+        }
+
+        .form-input:focus {
+            border-color: var(--medieval-gold);
+        }
+
+        /* Land Expansion Tab */
+        .expansion-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .expansion-cell {
+            aspect-ratio: 1;
+            background: rgba(30, 20, 10, 0.8);
+            border: 2px dashed var(--medieval-border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+
+        .expansion-cell:hover {
+            border-color: var(--medieval-gold);
+            background: rgba(70, 45, 25, 0.6);
+            transform: scale(1.05);
+        }
+
+        .expansion-cell.unlocked {
+            background: rgba(46, 139, 87, 0.35);
+            border: 2px solid #2e8b57;
+            color: #3cb371;
+            box-shadow: inset 0 0 10px rgba(46, 139, 87, 0.5);
+        }
+
+        .expansion-cell i {
+            font-size: 1.5rem;
+        }
+
+        .expansion-cell span {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* Instructions Banner */
+        .instructions-banner {
+            background: rgba(184, 134, 11, 0.15);
+            border: 2px solid var(--medieval-border);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: var(--text-light);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .instructions-banner i {
+            color: var(--medieval-gold);
+            font-size: 1.3rem;
+            margin-top: 2px;
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(30, 18, 8, 0.95);
+            border: 2px solid var(--medieval-gold);
+            color: var(--text-gold);
+            padding: 12px 24px;
+            border-radius: 6px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 999;
+            transform: translateY(150%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <img src="/img/logo.png" alt="Social Emperors Logo">
+            <h1>GM Panel</h1>
+        </div>
+        <div class="player-search">
+            <div class="search-wrapper">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" class="search-input" id="playerSearch" placeholder="Search players...">
+            </div>
+        </div>
+        <div class="player-list" id="playerList">
+            <!-- Dynamic players will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="main-header">
+            <div class="selected-player-title">
+                <h2 id="activePlayerName">Select a Player</h2>
+                <p id="activePlayerId">-</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="forceSync()" id="syncBtn" disabled>
+                    <i class="fa-solid fa-arrows-rotate"></i> Force Reload Client
+                </button>
+                <button class="btn btn-success" onclick="saveChanges()" id="saveBtn" disabled>
+                    <i class="fa-solid fa-floppy-disk"></i> Save & Sync
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Body -->
+        <div class="dashboard-body" id="dashboardBody" style="display: none;">
+            
+
+
+            <!-- Tabs -->
+            <div class="tabs-header">
+                <button class="tab-btn active" onclick="switchTab('resources')">
+                    <i class="fa-solid fa-wallet"></i> Resources & Level
+                </button>
+                <button class="tab-btn" onclick="switchTab('units')">
+                    <i class="fa-solid fa-chess-knight"></i> Inject Units & Buildings
+                </button>
+                <button class="tab-btn" onclick="switchTab('expansions')">
+                    <i class="fa-solid fa-map"></i> Land Expansion
+                </button>
+            </div>
+
+            <!-- Resources Tab -->
+            <div id="tab-resources" class="tab-pane active">
+                <div class="card-grid">
+                    <!-- Gold (Coins) -->
+                    <div class="resource-card" style="--glow-color: var(--gold);">
+                        <div class="resource-header">
+                            <span class="resource-title"><span class="emoji-icon">🪙</span> Gold (Coins)</span>
+                        </div>
+                        <input type="number" class="resource-value-input" id="res-coins" value="0">
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="adjustResource('coins', 1000)">+1K</button>
+                            <button class="quick-btn" onclick="adjustResource('coins', 10000)">+10K</button>
+                            <button class="quick-btn" onclick="setResource('coins', 999999)">999K</button>
+                        </div>
+                    </div>
+
+                    <!-- Cash (G) -->
+                    <div class="resource-card" style="--glow-color: var(--cash);">
+                        <div class="resource-header">
+                            <span class="resource-title"><img src="/img/cash.png" alt="Cash"> Cash (G)</span>
+                        </div>
+                        <input type="number" class="resource-value-input" id="res-cash" value="0">
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="adjustResource('cash', 100)">+100</button>
+                            <button class="quick-btn" onclick="adjustResource('cash', 1000)">+1K</button>
+                            <button class="quick-btn" onclick="setResource('cash', 99999)">99K</button>
+                        </div>
+                    </div>
+
+                    <!-- Wood -->
+                    <div class="resource-card" style="--glow-color: var(--wood);">
+                        <div class="resource-header">
+                            <span class="resource-title"><span class="emoji-icon">🪵</span> Wood</span>
+                        </div>
+                        <input type="number" class="resource-value-input" id="res-wood" value="0">
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="adjustResource('wood', 1000)">+1K</button>
+                            <button class="quick-btn" onclick="adjustResource('wood', 10000)">+10K</button>
+                            <button class="quick-btn" onclick="setResource('wood', 99999)">99K</button>
+                        </div>
+                    </div>
+
+                    <!-- Stone -->
+                    <div class="resource-card" style="--glow-color: var(--stone);">
+                        <div class="resource-header">
+                            <span class="resource-title"><span class="emoji-icon">🪨</span> Stone</span>
+                        </div>
+                        <input type="number" class="resource-value-input" id="res-stone" value="0">
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="adjustResource('stone', 1000)">+1K</button>
+                            <button class="quick-btn" onclick="adjustResource('stone', 10000)">+10K</button>
+                            <button class="quick-btn" onclick="setResource('stone', 99999)">99K</button>
+                        </div>
+                    </div>
+
+                    <!-- Food -->
+                    <div class="resource-card" style="--glow-color: var(--food);">
+                        <div class="resource-header">
+                            <span class="resource-title"><span class="emoji-icon">🍖</span> Food</span>
+                        </div>
+                        <input type="number" class="resource-value-input" id="res-food" value="0">
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="adjustResource('food', 1000)">+1K</button>
+                            <button class="quick-btn" onclick="adjustResource('food', 10000)">+10K</button>
+                            <button class="quick-btn" onclick="setResource('food', 99999)">99K</button>
+                        </div>
+                    </div>
+
+                    <!-- Level & XP -->
+                    <div class="resource-card" style="--glow-color: var(--primary);">
+                        <div class="resource-header">
+                            <span class="resource-title"><span class="emoji-icon">⭐</span> Level & XP</span>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" class="resource-value-input" id="res-level" placeholder="Lvl" style="width: 80px;" value="1">
+                            <input type="number" class="resource-value-input" id="res-xp" placeholder="XP" style="flex: 1;" value="0">
+                        </div>
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="adjustResource('level', 1)">+1 Lvl</button>
+                            <button class="quick-btn" onclick="adjustResource('xp', 500)">+500 XP</button>
+                            <button class="quick-btn" onclick="setResource('level', 50)">Max (50)</button>
+                        </div>
+                    </div>
+
+                    <!-- Population Slot -->
+                    <div class="resource-card" style="--glow-color: #ffaa00;">
+                        <div class="resource-header">
+                            <span class="resource-title"><span class="emoji-icon">👥</span> Population Slots</span>
+                        </div>
+                        <input type="number" class="resource-value-input" id="res-pop" value="0">
+                        <div class="quick-actions">
+                            <button class="quick-btn" onclick="adjustResource('pop', 50)">+50</button>
+                            <button class="quick-btn" onclick="adjustResource('pop', 200)">+200</button>
+                            <button class="quick-btn" onclick="setResource('pop', 1000)">Max (1000)</button>
+                        </div>
+                    </div>
+
+                    <!-- Tutorial & Quests -->
+                    <div class="resource-card" style="--glow-color: #00bcd4; display: flex; flex-direction: column; gap: 12px; justify-content: space-between;">
+                        <div class="resource-header">
+                            <span class="resource-title"><span class="emoji-icon">⚙️</span> Progression</span>
+                        </div>
+                        <div id="tutorial-status-text" style="font-weight: 700; font-size: 0.9rem; text-align: center; color: var(--text-gold); margin: 2px 0;">
+                            Status: Checking...
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                            <button class="btn btn-primary" onclick="skipTutorial()" id="skipTutorialBtn" style="padding: 8px; font-size: 0.8rem; width: 100%; justify-content: center;">
+                                Skip Tutorial
+                            </button>
+                            <button class="btn btn-outline" onclick="unlockQuests()" id="unlockQuestsBtn" style="padding: 8px; font-size: 0.8rem; width: 100%; justify-content: center;">
+                                Unlock All Quests
+                            </button>
+                            <button class="btn btn-danger" onclick="resetQuests()" id="resetQuestsBtn" style="padding: 8px; font-size: 0.8rem; width: 100%; justify-content: center;">
+                                Reset All Quests
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Units Tab -->
+            <div id="tab-units" class="tab-pane">
+                <div class="injector-layout">
+                    <!-- Left: Searchable Item List -->
+                    <div class="item-list-container">
+                        <div class="item-search">
+                            <input type="text" class="search-input" id="itemSearch" oninput="filterItems()" placeholder="Search units or buildings...">
+                        </div>
+                        <div class="item-scroll" id="itemList">
+                            <!-- Dynamically loaded items -->
+                        </div>
+                    </div>
+
+                    <!-- Right: Injection config -->
+                    <div class="injection-config">
+                        <div class="injection-header">
+                            <div class="item-thumb-wrapper" style="width: 64px; height: 64px;">
+                                <img src="/img/sword.png" id="selectedItemImage" alt="Item Preview">
+                            </div>
+                            <div>
+                                <h3 id="selectedItemName" style="font-family: 'Outfit', sans-serif;">Select an item from the list</h3>
+                                <p id="selectedItemIdTag" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">No item selected</p>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="inject-quantity">Quantity</label>
+                            <input type="number" class="form-input" id="inject-quantity" value="1" min="1" max="99">
+                        </div>
+
+                        <button class="btn btn-primary" onclick="injectItem()" id="injectBtn" style="margin-top: auto; padding: 14px;" disabled>
+                            <i class="fa-solid fa-gift"></i> Send to Gift Box
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expansions Tab -->
+            <div id="tab-expansions" class="tab-pane">
+                <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">
+                    Click cells on the grid below to lock/unlock land expansions. Expansions are stored as IDs.
+                </p>
+                <div class="expansion-grid" id="expansionGrid">
+                    <!-- 25 expansion cells -->
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px;">
+                    <button class="btn btn-outline" onclick="selectAllExpansions(false)">Lock All</button>
+                    <button class="btn btn-primary" onclick="selectAllExpansions(true)">Unlock All</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toastMsg">Changes saved!</span>
+    </div>
+
+    <script>
+        let players = [];
+        let items = [];
+        let thumbsMap = {};
+        let activePlayer = null;
+        let selectedItem = null;
+
+        // On Page Load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadPlayers();
+            loadItems();
+        });
+
+        function loadPlayers() {
+            fetch('/api/admin/players')
+                .then(r => r.json())
+                .then(data => {
+                    players = data;
+                    renderPlayerList();
+                });
+        }
+
+        function loadItems() {
+            fetch('/api/admin/items')
+                .then(r => r.json())
+                .then(data => {
+                    items = data.items;
+                    thumbsMap = data.thumbs;
+                    renderItemList();
+                });
+        }
+
+        function renderPlayerList() {
+            const container = document.getElementById('playerList');
+            const search = document.getElementById('playerSearch').value.toLowerCase();
+            container.innerHTML = '';
+
+            players.filter(p => p.name.toLowerCase().includes(search) || p.pid.includes(search)).forEach(p => {
+                const card = document.createElement('div');
+                card.className = `player-card ${activePlayer && activePlayer.pid === p.pid ? 'active' : ''}`;
+                card.onclick = () => selectPlayer(p);
+
+                card.innerHTML = `
+                    <div class="player-info-row">
+                        <div class="player-name">${p.name}</div>
+                        <div class="player-level">Lvl ${p.level}</div>
+                    </div>
+                    <div class="player-meta">
+                        <span class="coins-meta">🪙 ${p.coins || 0}</span>
+                        <span class="cash-meta"><img src="/img/cash.png" alt="Cash" style="width: 14px; height: 14px; vertical-align: middle;"> ${p.cash || 0}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        document.getElementById('playerSearch').addEventListener('input', renderPlayerList);
+
+        function selectPlayer(player) {
+            activePlayer = player;
+            renderPlayerList();
+
+            // Enable elements
+            document.getElementById('saveBtn').disabled = false;
+            document.getElementById('syncBtn').disabled = false;
+            document.getElementById('injectBtn').disabled = false;
+            document.getElementById('dashboardBody').style.display = 'flex';
+
+            // Set Header
+            document.getElementById('activePlayerName').innerText = player.name;
+            document.getElementById('activePlayerId').innerText = `PID: ${player.pid}`;
+
+            // Populate resources inputs
+            document.getElementById('res-coins').value = player.coins || 0;
+            document.getElementById('res-cash').value = player.cash || 0;
+            document.getElementById('res-wood').value = player.wood || 0;
+            document.getElementById('res-stone').value = player.stone || 0;
+            document.getElementById('res-food').value = player.food || 0;
+            document.getElementById('res-level').value = player.level || 1;
+            document.getElementById('res-xp').value = player.xp || 0;
+            document.getElementById('res-pop').value = player.increasedPopulation || 0;
+            updateTutorialStatus(player.completed_tutorial);
+
+            // Load expansions
+            renderExpansions(player.expansions || []);
+        }
+
+        // Tabs Logic
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+            event.currentTarget.classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        // Resource quick actions
+        function adjustResource(key, amount) {
+            const input = document.getElementById(`res-${key}`);
+            input.value = Math.max(0, parseInt(input.value || 0) + amount);
+        }
+
+        function setResource(key, val) {
+            document.getElementById(`res-${key}`).value = val;
+        }
+
+        // Render expansions grid
+        // Expansion IDs in the game are typically numbers like 1, 2, 3... or expansion coords. 
+        // We will mock/render 25 cells (0 to 24 indices) representing expansion indexes.
+        function renderExpansions(playerExpansions) {
+            const container = document.getElementById('expansionGrid');
+            container.innerHTML = '';
+
+            for (let i = 1; i <= 25; i++) {
+                const cell = document.createElement('div');
+                const isUnlocked = playerExpansions.includes(i);
+                cell.className = `expansion-cell ${isUnlocked ? 'unlocked' : ''}`;
+                cell.innerHTML = `
+                    <i class="fa-solid ${isUnlocked ? 'fa-lock-open' : 'fa-lock'}"></i>
+                    <span>Zone ${i}</span>
+                `;
+                cell.onclick = () => {
+                    if (cell.classList.contains('unlocked')) {
+                        cell.classList.remove('unlocked');
+                        cell.querySelector('i').className = 'fa-solid fa-lock';
+                        const idx = playerExpansions.indexOf(i);
+                        if (idx > -1) playerExpansions.splice(idx, 1);
+                    } else {
+                        cell.classList.add('unlocked');
+                        cell.querySelector('i').className = 'fa-solid fa-lock-open';
+                        if (!playerExpansions.includes(i)) playerExpansions.push(i);
+                    }
+                };
+                container.appendChild(cell);
+            }
+            // Update activePlayer reference expansions
+            activePlayer.expansions = playerExpansions;
+        }
+
+        function selectAllExpansions(unlock) {
+            if (!activePlayer) return;
+            activePlayer.expansions = unlock ? Array.from({length: 25}, (_, i) => i + 1) : [];
+            renderExpansions(activePlayer.expansions);
+        }
+
+        // Items logic
+        function renderItemList() {
+            const container = document.getElementById('itemList');
+            const search = document.getElementById('itemSearch').value.toLowerCase();
+            container.innerHTML = '';
+
+            items.filter(item => item.name && (item.name.toLowerCase().includes(search) || String(item.id).includes(search))).slice(0, 1000).forEach(item => {
+                const card = document.createElement('div');
+                const isSelected = selectedItem && selectedItem.id === item.id;
+                card.className = `item-option-card ${isSelected ? 'selected' : ''}`;
+                card.onclick = () => selectItem(item);
+
+                const thumb = thumbsMap[item.id] || '/img/sword.png';
+
+                card.innerHTML = `
+                    <div class="item-thumb-wrapper">
+                        <img src="${thumb}" onerror="this.src='/img/sword.png'" alt="Thumb">
+                    </div>
+                    <div class="item-info">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-id-tag">ID: ${item.id}</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterItems() {
+            renderItemList();
+        }
+
+        function selectItem(item) {
+            selectedItem = item;
+            renderItemList();
+
+            document.getElementById('selectedItemName').innerText = item.name;
+            document.getElementById('selectedItemIdTag').innerText = `ID: ${item.id} | Type: ${item.type || 'unknown'}`;
+            
+            const thumb = thumbsMap[item.id] || '/img/sword.png';
+            document.getElementById('selectedItemImage').src = thumb;
+            // Clear manual input if selection is used
+            document.getElementById('inject-manual-id').value = '';
+        }
+
+        function handleManualIdInput(val) {
+            const id = parseInt(val);
+            if (isNaN(id)) {
+                // Restore selection if empty
+                if (selectedItem) {
+                    selectItem(selectedItem);
+                } else {
+                    document.getElementById('selectedItemName').innerText = "Select an item from the list";
+                    document.getElementById('selectedItemIdTag').innerText = "No item selected";
+                    document.getElementById('selectedItemImage').src = "/img/sword.png";
+                }
+                return;
+            }
+            
+            // Try to find the item in our loaded list
+            const found = items.find(item => item.id === id);
+            if (found) {
+                selectedItem = found;
+                document.getElementById('selectedItemName').innerText = found.name;
+                document.getElementById('selectedItemIdTag').innerText = `ID: ${found.id} | Type: ${found.type || 'unknown'}`;
+                const thumb = thumbsMap[found.id] || '/img/sword.png';
+                document.getElementById('selectedItemImage').src = thumb;
+            } else {
+                selectedItem = { id: id, name: `Custom Item #${id}`, type: 'manual' };
+                document.getElementById('selectedItemName').innerText = `Custom Item #${id}`;
+                document.getElementById('selectedItemIdTag').innerText = `ID: ${id} | Type: manual`;
+                const thumb = thumbsMap[id] || '/img/sword.png';
+                document.getElementById('selectedItemImage').src = thumb;
+            }
+        }
+
+        function updateTutorialStatus(completed) {
+            const statusText = document.getElementById('tutorial-status-text');
+            const skipBtn = document.getElementById('skipTutorialBtn');
+            if (completed === 1) {
+                statusText.innerText = "Status: Completed";
+                statusText.style.color = "#00e676";
+                skipBtn.disabled = true;
+                skipBtn.innerText = "Completed";
+            } else {
+                statusText.innerText = "Status: Not Completed";
+                statusText.style.color = "#ff8a80";
+                skipBtn.disabled = false;
+                skipBtn.innerText = "Skip Tutorial";
+            }
+        }
+
+        let shouldUnlockQuests = 0;
+
+        function skipTutorial() {
+            if (!activePlayer) return;
+            activePlayer.completed_tutorial = 1;
+            updateTutorialStatus(1);
+            showToast("Tutorial set to completed! Click Save & Sync to apply.");
+        }
+
+        function unlockQuests() {
+            if (!activePlayer) return;
+            shouldUnlockQuests = 1;
+            showToast("Quests set to unlock! Click Save & Sync to apply.");
+        }
+
+        function resetQuests() {
+            if (!activePlayer) return;
+            shouldUnlockQuests = -1;
+            showToast("Quests set to reset/lock! Click Save & Sync to apply.");
+        }
+
+        // API Requests
+        function saveChanges() {
+            if (!activePlayer) return;
+
+            const payload = {
+                pid: activePlayer.pid,
+                coins: parseInt(document.getElementById('res-coins').value),
+                cash: parseInt(document.getElementById('res-cash').value),
+                wood: parseInt(document.getElementById('res-wood').value),
+                stone: parseInt(document.getElementById('res-stone').value),
+                food: parseInt(document.getElementById('res-food').value),
+                level: parseInt(document.getElementById('res-level').value),
+                xp: parseInt(document.getElementById('res-xp').value),
+                increasedPopulation: parseInt(document.getElementById('res-pop').value || 0),
+                completed_tutorial: activePlayer.completed_tutorial || 0,
+                unlock_all_quests: shouldUnlockQuests,
+                expansions: activePlayer.expansions
+            };
+
+            fetch('/api/admin/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    shouldUnlockQuests = 0;
+                    showToast("Changes saved successfully!");
+                    loadPlayers(); // Refresh list info
+                } else {
+                    showToast("Error: " + data.error);
+                }
+            });
+        }
+
+        function forceSync() {
+            if (!activePlayer) return;
+            fetch(`/api/admin/force_sync?pid=${activePlayer.pid}`, {method: 'POST'})
+                .then(r => r.json())
+                .then(data => {
+                    showToast("Force reload sent! Game client will reload on next action.");
+                });
+        }
+
+        function injectItem() {
+            if (!activePlayer || !selectedItem) {
+                showToast("Please select a player and an item first.");
+                return;
+            }
+
+            const payload = {
+                pid: activePlayer.pid,
+                item_id: selectedItem.id,
+                quantity: parseInt(document.getElementById('inject-quantity').value || 1)
+            };
+
+            fetch('/api/admin/add_item', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Sent ${payload.quantity}x ${selectedItem.name} to Gift Box!`);
+                } else {
+                    showToast("Error: " + data.error);
+                }
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

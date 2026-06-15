@@ -39,6 +39,8 @@ app = Flask(__name__, template_folder=TEMPLATES_DIR)
 
 print (" [+] Configuring server routes...")
 
+force_sync_players = set()
+
 ##########
 # ROUTES #
 ##########
@@ -186,7 +188,28 @@ def get_game_config_response():
     language = request.values['language']
 
     print(f"get_game_config: USERID: {USERID}. --", request.values)
-    return get_game_config()
+    
+    config = get_game_config()
+    
+    from sessions import session
+    save = session(USERID)
+    if save:
+        player_info = save.get("playerInfo", {})
+        default_map = player_info.get("default_map", 0)
+        maps = save.get("maps", [])
+        if len(maps) > default_map:
+            map_data = maps[default_map]
+            pop_bonus = int(map_data.get("increasedPopulation", 0))
+            if pop_bonus > 0:
+                import copy
+                config = copy.deepcopy(config)
+                for item in config.get("items", []):
+                    if str(item.get("id")) == "26":
+                        item["population"] = str(5 + pop_bonus)
+                        print(f" [GM CONFIG] Applied custom Town Hall population: {item['population']} for USERID: {USERID}")
+                        break
+                        
+    return config
 
 @app.route("/dynamic.flash1.dev.socialpoint.es/appsfb/socialempiresdev/srvempires/get_player_info.php", methods=['POST'])
 def get_player_info_response():
@@ -270,6 +293,11 @@ def command_response():
     data_payload = data_str[65:]
     data = json.loads(data_payload)
 
+    if USERID in force_sync_players:
+        force_sync_players.remove(USERID)
+        print(f" [GM SYNC] Forcing client reload for USERID: {USERID}")
+        return ({"result": "error", "reason": "GM Force Sync"}, 400)
+
     command(USERID, data)
     
     return ({"result": "success"}, 200)
@@ -299,6 +327,209 @@ def get_continent_ranking_response():
         ]
     }
     return(response)
+
+
+#########################
+# GM / ADMIN API ROUTES #
+#########################
+
+@app.route("/admin")
+@app.route("/admin.html")
+def admin_page():
+    return render_template("admin.html")
+
+@app.route("/assets/<path:path>")
+def serve_assets(path):
+    return send_from_directory(ASSETS_DIR, path)
+
+@app.route("/api/admin/players")
+def admin_players():
+    from database import get_db_connection
+    from sessions import session
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT pid, name, level, xp FROM players")
+    db_players = cursor.fetchall()
+    conn.close()
+    
+    players_data = []
+    for p in db_players:
+        pid = p["pid"]
+        save = session(pid)
+        if save:
+            player_info = save.get("playerInfo", {})
+            default_map = player_info.get("default_map", 0)
+            map_data = save["maps"][default_map] if len(save.get("maps", [])) > default_map else {}
+            players_data.append({
+                "pid": pid,
+                "name": player_info.get("name", p["name"]),
+                "level": map_data.get("level", player_info.get("level", p["level"])),
+                "xp": map_data.get("xp", player_info.get("xp", p["xp"])),
+                "coins": map_data.get("coins", player_info.get("coins", 0)),
+                "cash": player_info.get("cash", 0),
+                "wood": map_data.get("wood", 0),
+                "stone": map_data.get("stone", 0),
+                "food": map_data.get("food", 0),
+                "expansions": map_data.get("expansions", []),
+                "completed_tutorial": player_info.get("completed_tutorial", 0),
+                "increasedPopulation": map_data.get("increasedPopulation", 0)
+            })
+    return json.dumps(players_data)
+
+@app.route("/api/admin/items")
+def admin_items():
+    from get_game_config import get_game_config
+    config = get_game_config()
+    items_list = []
+    
+    # Track existing IDs to avoid duplicates
+    seen_ids = set()
+    
+    for item in config.get("items", []):
+        if item.get("name"):
+            item_id = int(item.get("id"))
+            seen_ids.add(item_id)
+            items_list.append({
+                "id": item_id,
+                "name": item.get("name"),
+                "type": item.get("type")
+            })
+            
+    # Also parse custom CSV items from tools/se_unit_patch.csv dynamically
+    csv_path = os.path.join(BASE_DIR, "tools", "se_unit_patch.csv")
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    col = line.strip().split("\t")
+                    if len(col) >= 3 and col[0].isdigit():
+                        item_id = int(col[0])
+                        item_name = col[2]
+                        if item_id not in seen_ids:
+                            seen_ids.add(item_id)
+                            items_list.append({
+                                "id": item_id,
+                                "name": item_name,
+                                "type": "custom"
+                            })
+        except Exception as e:
+            print(f" [GM] Error parsing se_unit_patch.csv: {e}")
+    
+    # Map thumbnails dynamically
+    thumbs_map = {}
+    thumbs_dir = os.path.join(ASSETS_DIR, "buildingthumbs")
+    if os.path.exists(thumbs_dir):
+        for f in os.listdir(thumbs_dir):
+            if f.endswith((".jpg", ".png")):
+                parts = f.split("_", 1)
+                if parts[0].isdigit():
+                    thumbs_map[int(parts[0])] = f"/assets/buildingthumbs/{f}"
+                    
+    return {"items": items_list, "thumbs": thumbs_map}
+
+@app.route("/api/admin/update", methods=['POST'])
+def admin_update():
+    from sessions import session, save_session
+    data = request.json
+    pid = data.get("pid")
+    save = session(pid)
+    if not save:
+        return {"success": False, "error": "Player not found"}
+    
+    player_info = save["playerInfo"]
+    player_info["cash"] = data.get("cash", player_info.get("cash", 0))
+    
+    default_map = player_info.get("default_map", 0)
+    map_data = save["maps"][default_map]
+    
+    for field in ["coins", "xp", "level", "stone", "wood", "food"]:
+        if field in data:
+            map_data[field] = data[field]
+            player_info[field] = data[field]
+            
+    if "increasedPopulation" in data:
+        map_data["increasedPopulation"] = data["increasedPopulation"]
+        
+    if "completed_tutorial" in data:
+        completed = int(data["completed_tutorial"])
+        player_info["completed_tutorial"] = completed
+        if completed == 1:
+            # Also unlock dragon nest for a fully functional player state
+            private_state = save.setdefault("privateState", {})
+            private_state["dragonNestActive"] = 1
+            
+    if "unlock_all_quests" in data:
+        if data["unlock_all_quests"] == 1:
+            quest_ids = [
+                100000002, 100000003, 100000006, 100000007, 100000008, 100000011,
+                100000012, 100000013, 100000014, 100000015, 100000018, 100000019,
+                100000020, 100000021, 100000022, 100000023, 100000028, 100000033,
+                100000035, 100000036, 100000041, 100000042, 100000043, 100000044,
+                100000045, 100000046, 100000047, 100000051, 100000052, 100000053,
+                100000054, 100000055, 100000090, 100000091, 100000092
+            ]
+            map_data["questTimes"] = [[qid, 1] for qid in quest_ids]
+            map_data["lastQuestTimes"] = [[qid, 1781522800] for qid in quest_ids]
+            
+            # Progression properties inside privateState
+            private_state = save.setdefault("privateState", {})
+            private_state["unlockedQuestIndex"] = 100
+            
+            # Unlock all survival/ship maps
+            s_maps = private_state.setdefault("survivalMaps", {})
+            survival_ids = [
+                "100000035", "100000036", "100000037", "100000038", "100000039", 
+                "100000040", "100000041", "100000042", "100000043", "100000044", 
+                "100000045", "100000046", "100000047", "100000048", "100000049"
+            ]
+            for s_id in survival_ids:
+                s_maps[s_id] = {"ts": 1781522800, "tp": 1}
+        elif data["unlock_all_quests"] == -1:
+            # Reset all quests
+            map_data["questTimes"] = []
+            map_data["lastQuestTimes"] = []
+            private_state = save.setdefault("privateState", {})
+            private_state["unlockedQuestIndex"] = 0
+            private_state["survivalMaps"] = {}
+                
+    if "expansions" in data:
+        map_data["expansions"] = data["expansions"]
+        
+    save_session(pid)
+    return {"success": True}
+
+@app.route("/api/admin/add_item", methods=['POST'])
+def admin_add_item():
+    from sessions import session, save_session
+    data = request.json
+    pid = data.get("pid")
+    item_id = int(data.get("item_id"))
+    quantity = int(data.get("quantity", 1))
+    
+    save = session(pid)
+    if not save:
+        return {"success": False, "error": "Player not found"}
+        
+    private_state = save.setdefault("privateState", {})
+    gifts = private_state.setdefault("gifts", [])
+    
+    # Pad the gifts list if it is not long enough
+    if len(gifts) <= item_id:
+        gifts.extend([0] * (item_id - len(gifts) + 1))
+        
+    gifts[item_id] += quantity
+    
+    save_session(pid)
+    return {"success": True}
+
+@app.route("/api/admin/force_sync", methods=['POST'])
+def admin_force_sync():
+    pid = request.args.get("pid")
+    if pid:
+        force_sync_players.add(pid)
+        print(f" [GM SYNC] Registered force sync reload request for player: {pid}")
+    return {"success": True}
+
 
 
 ########
